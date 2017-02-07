@@ -1,6 +1,7 @@
 -- imports always go on top
 import Html exposing (Html)
 import Html.Attributes exposing (..)
+import Html.Events exposing (..)
 import Css exposing (..)
 
 
@@ -28,7 +29,10 @@ type alias Model =
 type alias Cell =
   { color : String
   , marked : Bool
+  , position : Position
   }
+
+type alias Position = (Int, Int)
 
 -- The model needs a starting value. The program gets an initial value by calling init
 init : (Model, Cmd Msg)
@@ -39,27 +43,31 @@ init =
 initModel : Model
 initModel =
   { text = "Hello world!"
-  , grid =
-    [ [basicCell "#f0f", basicCell "#ff0", basicCell "#0ff", basicCell "#f0f", basicCell "#ff0"]
-    , [basicCell "#ff0", basicCell "#0ff", basicCell "#f0f", basicCell "#ff0", basicCell "#f0f"]
-    , [basicCell "#0ff", basicCell "#f0f", basicCell "#ff0", basicCell "#f0f", basicCell "#ff0"]
-    , [basicCell "#f0f", basicCell "#ff0", basicCell "#f0f", basicCell "#ff0", basicCell "#0ff"]
-    , [basicCell "#ff0", basicCell "#f0f", basicCell "#ff0", basicCell "#0ff", basicCell "#f0f"]
-    ]
+  , grid = generateGrid 5 5
   }
 
-basicCell : String -> Cell
-basicCell color =
-  { color = color
+generateGrid : Int -> Int -> List (List Cell)
+generateGrid n m =
+  List.map (generateRow m) (List.range 0 n)
+
+generateRow : Int -> Int -> List Cell
+generateRow m rowIndex =
+  List.map (generateCell rowIndex) (List.range 0 m)
+
+generateCell : Int -> Int -> Cell
+generateCell rowIndex colIndex =
+  { color = "#ff0"
   , marked = False
+  , position = (rowIndex, colIndex)
   }
+
 
 -- UPDATE
 
 -- The Msg type is a "union type", which is a fancy word for "it'll be one of these things"
 -- There are the names of actions that can happen in our program.
 type Msg
-  = Mark
+  = Mark Position
   | Swap
 
 
@@ -68,8 +76,8 @@ type Msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Mark ->
-      (model, Cmd.none)
+    Mark position ->
+      ({model | grid = generateGrid 10 10}, Cmd.none)
 
     Swap ->
       (model, Cmd.none)
@@ -101,6 +109,7 @@ view model =
     , showGrid model.grid
     ]
 
+styles : List Mixin -> Html.Attribute msg
 styles =
     Css.asPairs >> Html.Attributes.style
 
@@ -119,5 +128,7 @@ showRow cells =
 showCell : Cell -> Html Msg
 showCell cell =
   Html.td
-    [styles [color (hex cell.color)]]
+    [ styles [backgroundColor (hex cell.color)]
+    , onClick (Mark cell.position)
+    ]
     [Html.text "cell"]
