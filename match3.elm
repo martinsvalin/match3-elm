@@ -1,7 +1,11 @@
-import Html exposing (Html, div)
-import Svg exposing (Svg, svg, text, polygon, rect)
-import Svg.Attributes exposing (version, x, y, viewBox, fill, points, width, height, transform)
+-- imports always go on top
+import Html exposing (Html)
+import Html.Attributes exposing (..)
+import Css exposing (..)
 
+
+-- this main function can be pretty much the same every time. not all programs will be Html.program, but lots will.
+-- so don't worry about it and just copy-paste it :)
 main : Program Never Model Msg
 main =
   Html.program
@@ -14,22 +18,53 @@ main =
 
 -- MODEL
 
-
+-- Model is as good a name as any for the data that describes your world. Feel free to re-use the name.
+-- We will stick everything we need to keep track of here.
 type alias Model =
-  { text : String
+  { text : String,
+    grid : List (List Cell)
   }
 
+type alias Cell =
+  { color : String
+  , marked : Bool
+  }
+
+-- The model needs a starting value. The program gets an initial value by calling init
 init : (Model, Cmd Msg)
 init =
-  (Model "Hello world!", Cmd.none)
+  (initModel, Cmd.none)
 
+
+initModel : Model
+initModel =
+  { text = "Hello world!"
+  , grid =
+    [ [basicCell "#f0f", basicCell "#ff0", basicCell "#0ff", basicCell "#f0f", basicCell "#ff0"]
+    , [basicCell "#ff0", basicCell "#0ff", basicCell "#f0f", basicCell "#ff0", basicCell "#f0f"]
+    , [basicCell "#0ff", basicCell "#f0f", basicCell "#ff0", basicCell "#f0f", basicCell "#ff0"]
+    , [basicCell "#f0f", basicCell "#ff0", basicCell "#f0f", basicCell "#ff0", basicCell "#0ff"]
+    , [basicCell "#ff0", basicCell "#f0f", basicCell "#ff0", basicCell "#0ff", basicCell "#f0f"]
+    ]
+  }
+
+basicCell : String -> Cell
+basicCell color =
+  { color = color
+  , marked = False
+  }
 
 -- UPDATE
 
+-- The Msg type is a "union type", which is a fancy word for "it'll be one of these things"
+-- There are the names of actions that can happen in our program.
 type Msg
   = Mark
   | Swap
 
+
+-- The update model is called whenever a message is sent (that is, whenever an action happens)
+-- We combine the action and the current state of the world to produce the next state of the world
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -42,7 +77,8 @@ update msg model =
 
 -- SUBSCRIPTIONS
 
-
+-- No subscriptions so far. We could subscribe to stuff like keyboard events,
+-- mouse events, changes to the browser location bar, etc.
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.none
@@ -50,30 +86,38 @@ subscriptions model =
 
 -- VIEW
 
-
+-- Every time the model is updated, the new model gets passed to view, where it
+-- is rendered to something the browser can display.
+-- So view takes in a model, and turns it into Html for the Html.program to show.
+-- We can write Html straight in Elm, in a similar way to how normal Html is written.
+-- The `div` below is an Elm function, but it represents an Html <div> tag,
+-- Every one of these tag functions take two lists, first the attributes, and then
+-- whatever is inside the tag – the children.
 view : Model -> Html Msg
 view model =
-  div
+  Html.div
     []
-    [ text model.text
-    , logo
+    [ Html.text model.text
+    , showGrid model.grid
     ]
 
+styles =
+    Css.asPairs >> Html.Attributes.style
 
-logo : Svg Msg
-logo =
-  svg
-    [ version "1.1", x "0", y "0", viewBox "0 0 323.141 322.95"
-    ]
-    [ polygon [ fill "#F0AD00", points "161.649,152.782 231.514,82.916 91.783,82.916" ] []
-    , polygon [ fill "#7FD13B", points "8.867,0 79.241,70.375 232.213,70.375 161.838,0" ] []
-    , rect
-        [ fill "#7FD13B", x "192.99", y "107.392", width "107.676", height "108.167"
-        , transform "matrix(0.7071 0.7071 -0.7071 0.7071 186.4727 -127.2386)"
-        ]
-        []
-    , polygon [ fill "#60B5CC", points "323.298,143.724 323.298,0 179.573,0" ] []
-    , polygon [ fill "#5A6378", points "152.781,161.649 0,8.868 0,314.432" ] []
-    , polygon [ fill "#F0AD00", points "255.522,246.655 323.298,314.432 323.298,178.879" ] []
-    , polygon [ fill "#60B5CC", points "161.649,170.517 8.869,323.298 314.43,323.298" ] []
-    ]
+showGrid : List (List Cell) -> Html Msg
+showGrid rows =
+  Html.table
+    []
+    (List.map showRow rows)
+
+showRow : List Cell -> Html Msg
+showRow cells =
+  Html.tr
+    []
+    (List.map showCell cells)
+
+showCell : Cell -> Html Msg
+showCell cell =
+  Html.td
+    [styles [color (hex cell.color)]]
+    [Html.text "cell"]
