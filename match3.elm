@@ -23,8 +23,10 @@ main =
 -- We will stick everything we need to keep track of here.
 type alias Model =
   { text : String,
-    grid : List (List Cell)
+    grid : Grid
   }
+
+type alias Grid = List (List Cell)
 
 type alias Cell =
   { color : String
@@ -46,7 +48,7 @@ initModel =
   , grid = generateGrid 5 5
   }
 
-generateGrid : Int -> Int -> List (List Cell)
+generateGrid : Int -> Int -> Grid
 generateGrid n m =
   List.map (generateRow m) (List.range 0 n)
 
@@ -77,11 +79,26 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Mark position ->
-      ({model | grid = generateGrid 10 10}, Cmd.none)
+      ({model | grid = markPositionInGrid model.grid position}, Cmd.none)
 
     Swap ->
       (model, Cmd.none)
 
+
+markPositionInGrid : Grid -> Position -> Grid
+markPositionInGrid grid position =
+  List.map (markRow position) grid
+
+markRow : Position -> List Cell -> List Cell
+markRow position grid =
+  List.map (markCell position) grid
+
+markCell : Position -> Cell -> Cell
+markCell position cell =
+  if cell.position == position then
+    {cell | marked = not cell.marked}
+  else
+    cell
 
 -- SUBSCRIPTIONS
 
@@ -113,7 +130,7 @@ styles : List Mixin -> Html.Attribute msg
 styles =
     Css.asPairs >> Html.Attributes.style
 
-showGrid : List (List Cell) -> Html Msg
+showGrid : Grid -> Html Msg
 showGrid rows =
   Html.table
     []
@@ -128,7 +145,17 @@ showRow cells =
 showCell : Cell -> Html Msg
 showCell cell =
   Html.td
-    [ styles [backgroundColor (hex cell.color)]
+    [ styles
+      [ backgroundColor (hex cell.color)
+      , color (hex (marked cell.marked))
+      ]
     , onClick (Mark cell.position)
     ]
     [Html.text "cell"]
+
+marked : Bool -> String
+marked bool =
+  if bool then
+    "#f00"
+  else
+    "#000"
