@@ -32,9 +32,12 @@ type alias Grid = List (List Cell)
 type alias Cell =
   { color : String
   , position : Position
+  , language : Language
   }
 
 type alias Position = (Int, Int)
+
+type Language = JavaScript | Ruby | Python | Erlang | Elm | Swift | Clojure | Rust | Haskell | Scratch
 
 -- The model needs a starting value. The program gets an initial value by calling init
 init : (Model, Cmd Msg)
@@ -61,6 +64,10 @@ generateCell : Int -> Int -> Cell
 generateCell rowIndex colIndex =
   { color = "#ff0"
   , position = (rowIndex, colIndex)
+  , language = if ((rowIndex + colIndex) % 2) == 0 then
+      Elm
+    else
+      JavaScript
   }
 
 
@@ -168,7 +175,10 @@ showCell : Model -> Cell -> Html Msg
 showCell model cell =
   Html.div
     [ styles
-      [ backgroundColor (hex (marked model.marked cell.position))
+      [ backgroundColor (tintFor cell.language)
+      , border (px 2)
+      , borderColor (marked model.marked cell.position)
+      , borderStyle solid
       , Css.width (px 64)
       , Css.height (px 64)
       , margin (px 3)
@@ -178,14 +188,21 @@ showCell model cell =
     ]
     []
 
-marked : Maybe Position -> Position -> String
+tintFor : Language -> Css.Color
+tintFor language =
+  case language of
+    Elm -> rgb 135 202 65
+    JavaScript -> rgb 247 223 30
+    _ -> rgb 0 0 0
+
+marked : Maybe Position -> Position -> Css.Color
 marked marked position =
   case marked of
     Nothing -> markedColor False
     Just marked -> markedColor (marked == position)
 
-markedColor : Bool -> String
+markedColor : Bool -> Css.Color
 markedColor bool =
   case bool of
-    True -> "#f00"
-    False -> "#000"
+    True -> rgb 255 0 0
+    False -> rgb 0 0 0
