@@ -45,16 +45,16 @@ init =
 initModel : Model
 initModel =
   { text = "Hello world!"
-  , grid = generateGrid 5 5
+  , grid = generateGrid 9 9
   }
 
 generateGrid : Int -> Int -> Grid
 generateGrid n m =
-  List.map (generateRow m) (List.range 0 n)
+  List.map (generateRow m) (List.range 1 n)
 
 generateRow : Int -> Int -> List Cell
 generateRow m rowIndex =
-  List.map (generateCell rowIndex) (List.range 0 m)
+  List.map (generateCell rowIndex) (List.range 1 m)
 
 generateCell : Int -> Int -> Cell
 generateCell rowIndex colIndex =
@@ -121,10 +121,28 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   Html.div
-    []
-    [ Html.text model.text
+    [ styles
+      [ backgroundColor (hex "#FFFFFF")
+      , Css.width (px 630)
+      , Css.marginLeft auto
+      , Css.marginRight auto
+      ]
+    ]
+    [ header model.text
     , showGrid model.grid
     ]
+
+header : String -> Html Msg
+header text =
+  Html.h1
+    [ styles
+      [ textAlign center
+      , margin (px 0)
+      , padding (px 20)
+      , fontFamily monospace 
+      ]
+    ]
+    [Html.text text]
 
 styles : List Mixin -> Html.Attribute msg
 styles =
@@ -132,26 +150,34 @@ styles =
 
 showGrid : Grid -> Html Msg
 showGrid rows =
-  Html.table
-    []
+  Html.div
+    [ styles
+      []
+    ]
     (List.map showRow rows)
 
 showRow : List Cell -> Html Msg
 showRow cells =
-  Html.tr
-    []
+  Html.div
+    [ styles
+      [ displayFlex
+      ]
+    ]
     (List.map showCell cells)
 
 showCell : Cell -> Html Msg
 showCell cell =
-  Html.td
+  Html.div
     [ styles
-      [ backgroundColor (hex cell.color)
-      , color (hex (marked cell.marked))
+      [ backgroundColor (hex (marked cell.marked))
+      , Css.width (px 64)
+      , Css.height (px 64)
+      , margin (px 3)
+      , cursor pointer
       ]
     , onClick (Mark cell.position)
     ]
-    [Html.text "cell"]
+    []
 
 marked : Bool -> String
 marked bool =
