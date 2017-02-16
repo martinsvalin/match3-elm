@@ -22,15 +22,15 @@ main =
 -- Model is as good a name as any for the data that describes your world. Feel free to re-use the name.
 -- We will stick everything we need to keep track of here.
 type alias Model =
-  { text : String,
-    grid : Grid
+  { text : String
+  , grid : Grid
+  , marked: Maybe Position
   }
 
 type alias Grid = List (List Cell)
 
 type alias Cell =
   { color : String
-  , marked : Bool
   , position : Position
   }
 
@@ -46,6 +46,7 @@ initModel : Model
 initModel =
   { text = "Hello world!"
   , grid = generateGrid 9 9
+  , marked = Nothing
   }
 
 generateGrid : Int -> Int -> Grid
@@ -59,7 +60,6 @@ generateRow m rowIndex =
 generateCell : Int -> Int -> Cell
 generateCell rowIndex colIndex =
   { color = "#ff0"
-  , marked = False
   , position = (rowIndex, colIndex)
   }
 
@@ -79,26 +79,25 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Mark position ->
-      ({model | grid = markPositionInGrid model.grid position}, Cmd.none)
+      ({model | marked = Just position}, Cmd.none)
 
     Swap ->
       (model, Cmd.none)
 
-
-markPositionInGrid : Grid -> Position -> Grid
-markPositionInGrid grid position =
-  List.map (markRow position) grid
-
-markRow : Position -> List Cell -> List Cell
-markRow position grid =
-  List.map (markCell position) grid
-
-markCell : Position -> Cell -> Cell
-markCell position cell =
-  if cell.position == position then
-    {cell | marked = not cell.marked}
-  else
-    cell
+-- markPositionInGrid : Grid -> Position -> Grid
+-- markPositionInGrid grid position =
+--   List.map (markRow position) grid
+--
+-- markRow : Position -> List Cell -> List Cell
+-- markRow position grid =
+--   List.map (markCell position) grid
+--
+-- markCell : Position -> Cell -> Cell
+-- markCell position cell =
+--   if cell.position == position then
+--     {cell | marked = not cell.marked}
+--   else
+--     cell
 
 -- SUBSCRIPTIONS
 
@@ -129,7 +128,7 @@ view model =
       ]
     ]
     [ header model.text
-    , showGrid model.grid
+    , showGrid model model.grid
     ]
 
 header : String -> Html Msg
@@ -139,7 +138,7 @@ header text =
       [ textAlign center
       , margin (px 0)
       , padding (px 20)
-      , fontFamily monospace 
+      , fontFamily monospace
       ]
     ]
     [Html.text text]
@@ -148,28 +147,28 @@ styles : List Mixin -> Html.Attribute msg
 styles =
     Css.asPairs >> Html.Attributes.style
 
-showGrid : Grid -> Html Msg
-showGrid rows =
+showGrid : Model -> Grid -> Html Msg
+showGrid model rows =
   Html.div
     [ styles
       []
     ]
-    (List.map showRow rows)
+    (List.map (showRow model) rows )
 
-showRow : List Cell -> Html Msg
-showRow cells =
+showRow : Model -> List Cell -> Html Msg
+showRow model cells =
   Html.div
     [ styles
       [ displayFlex
       ]
     ]
-    (List.map showCell cells)
+    (List.map (showCell model) cells )
 
-showCell : Cell -> Html Msg
-showCell cell =
+showCell : Model -> Cell -> Html Msg
+showCell model cell =
   Html.div
     [ styles
-      [ backgroundColor (hex (marked cell.marked))
+      [ backgroundColor (hex (marked model.marked cell.position))
       , Css.width (px 64)
       , Css.height (px 64)
       , margin (px 3)
@@ -179,9 +178,14 @@ showCell cell =
     ]
     []
 
-marked : Bool -> String
-marked bool =
-  if bool then
-    "#f00"
-  else
-    "#000"
+marked : Maybe Position -> Position -> String
+marked marked position =
+  case marked of
+    Nothing -> markedColor False
+    Just marked -> markedColor (marked == position)
+
+markedColor : Bool -> String
+markedColor bool =
+  case bool of
+    True -> "#f00"
+    False -> "#000"
