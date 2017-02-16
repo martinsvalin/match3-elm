@@ -30,8 +30,7 @@ type alias Model =
 type alias Grid = List (List Cell)
 
 type alias Cell =
-  { color : String
-  , position : Position
+  { position : Position
   , language : Language
   }
 
@@ -40,6 +39,7 @@ type alias Position = (Int, Int)
 type Language = JavaScript | Ruby | Python | Erlang | Elm | Swift | Clojure | Rust | Haskell | Scratch
 
 -- The model needs a starting value. The program gets an initial value by calling init
+-- The Cmd is there for things like making web requests, getting random numbers, making sound etc.
 init : (Model, Cmd Msg)
 init =
   (initModel, Cmd.none)
@@ -62,8 +62,7 @@ generateRow m rowIndex =
 
 generateCell : Int -> Int -> Cell
 generateCell rowIndex colIndex =
-  { color = "#ff0"
-  , position = (rowIndex, colIndex)
+  { position = (rowIndex, colIndex)
   , language = if ((rowIndex + colIndex) % 2) == 0 then
       Elm
     else
@@ -77,7 +76,7 @@ generateCell rowIndex colIndex =
 -- There are the names of actions that can happen in our program.
 type Msg
   = Mark Position
-  | Swap
+  | Swap Position Position
 
 
 -- The update model is called whenever a message is sent (that is, whenever an action happens)
@@ -86,25 +85,31 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Mark position ->
-      ({model | marked = Just position}, Cmd.none)
+      case model.marked of
+        Nothing ->
+          ({model | marked = Just position}, Cmd.none)
 
-    Swap ->
+        Just marked ->
+          if isAdjacent marked position then
+            update (Swap marked position) {model | marked = Nothing}
+          else
+            ({model | marked = Just position}, Cmd.none)
+
+    Swap marked position ->
       (model, Cmd.none)
 
--- markPositionInGrid : Grid -> Position -> Grid
--- markPositionInGrid grid position =
---   List.map (markRow position) grid
---
--- markRow : Position -> List Cell -> List Cell
--- markRow position grid =
---   List.map (markCell position) grid
---
--- markCell : Position -> Cell -> Cell
--- markCell position cell =
---   if cell.position == position then
---     {cell | marked = not cell.marked}
---   else
---     cell
+isAdjacent : Position -> Position -> Bool
+isAdjacent source target =
+  List.member target (adjacents source)
+
+adjacents : Position -> List Position
+adjacents (x, y) =
+  [ (x - 1, y)
+  , (x + 1, y)
+  , (x, y - 1)
+  , (x, y + 1)
+  ]
+
 
 -- SUBSCRIPTIONS
 
