@@ -23,7 +23,7 @@ main =
 -- We will stick everything we need to keep track of here.
 type alias Model =
   { text : String
-  , grid : Grid
+  , cells : List Cell
   , marked: Maybe Position
   }
 
@@ -48,13 +48,14 @@ init =
 initModel : Model
 initModel =
   { text = "Hello world!"
-  , grid = generateGrid 9 9
+  , cells = generateCells 9 9
   , marked = Nothing
   }
 
-generateGrid : Int -> Int -> Grid
-generateGrid n m =
+generateCells : Int -> Int -> List Cell
+generateCells n m =
   List.map (generateRow m) (List.range 1 n)
+  |> List.concat
 
 generateRow : Int -> Int -> List Cell
 generateRow m rowIndex =
@@ -68,6 +69,17 @@ generateCell rowIndex colIndex =
     else
       JavaScript
   }
+
+toGrid : List Cell -> Grid
+toGrid cells =
+  List.sortBy .position cells
+  |> chunk 9
+
+chunk : Int -> List a -> List (List a)
+chunk size list =
+  if (List.length list) > size
+    then List.take size list :: chunk size (List.drop size list)
+    else [list]
 
 
 -- UPDATE
@@ -95,7 +107,7 @@ update msg model =
           else
             ({model | marked = Just position}, Cmd.none)
 
-    Swap marked position ->
+    Swap one two ->
       (model, Cmd.none)
 
 isAdjacent : Position -> Position -> Bool
@@ -140,7 +152,7 @@ view model =
       ]
     ]
     [ header model.text
-    , showGrid model model.grid
+    , showGrid model (toGrid model.cells)
     ]
 
 header : String -> Html Msg
