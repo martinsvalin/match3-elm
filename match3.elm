@@ -107,8 +107,10 @@ update msg model =
           else
             ({model | marked = Just position}, Cmd.none)
 
-    Swap one two ->
-      (model, Cmd.none)
+    Swap pos1 pos2 ->
+      let cell1 = find_cell pos1 model.cells
+          cell2 = find_cell pos2 model.cells
+      in ({model | cells = (swap model.cells cell1 cell2)}, Cmd.none)
 
 isAdjacent : Position -> Position -> Bool
 isAdjacent source target =
@@ -121,6 +123,26 @@ adjacents (x, y) =
   , (x, y - 1)
   , (x, y + 1)
   ]
+
+swap : List Cell -> Maybe Cell -> Maybe Cell -> List Cell
+swap cells cell1 cell2 =
+  case (cell1, cell2) of
+    (Just one, Just two) -> List.map (swap_cell one two) cells
+    _ -> cells
+
+swap_cell : Cell -> Cell -> Cell -> Cell
+swap_cell one two current =
+  if current == one then
+    {current | language = two.language}
+  else if current == two then
+    {current | language = one.language}
+  else
+    current
+
+find_cell : Position -> List Cell -> Maybe Cell
+find_cell position cells =
+  List.filter (\cell -> cell.position == position) cells
+  |> List.head
 
 
 -- SUBSCRIPTIONS
