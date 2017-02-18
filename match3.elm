@@ -101,11 +101,7 @@ generateRow m rowIndex =
 generateCell : Int -> Int -> Cell
 generateCell rowIndex colIndex =
     { position = ( rowIndex, colIndex )
-    , language =
-        if ((rowIndex + colIndex) % 2) == 0 then
-            Elm
-        else
-            JavaScript
+    , language = getPseudoRandomLanguage (rowIndex * 17 + colIndex)
     }
 
 
@@ -123,6 +119,24 @@ chunk size list =
         [ list ]
 
 
+getPseudoRandomLanguage : Int -> Language
+getPseudoRandomLanguage seed =
+    let
+        sinOfSeed = sin (toFloat seed)
+        flooredSinOfSeed = floor (sinOfSeed * 10000)
+        value = flooredSinOfSeed % 9
+    in
+        case value of
+            0 -> JavaScript
+            1 -> Ruby
+            2 -> Elm
+            3 -> Erlang
+            4 -> Rust
+            5 -> Clojure
+            6 -> Scratch
+            7 -> Swift
+            8 -> Haskell
+            _ -> Python
 
 -- UPDATE
 -- The Msg type is a "union type", which is a fancy word for "it'll be one of these things"
@@ -376,8 +390,26 @@ tintFor language =
         Ruby ->
             rgb 155 28 22
 
-        _ ->
-            rgb 0 0 0
+        Python ->
+            rgb 54 113 161
+
+        Erlang ->
+            rgb 169 5 51
+
+        Haskell ->
+            rgb 102 73 142
+
+        Swift ->
+            rgb 253 131 54
+
+        Clojure ->
+            rgb 99 117 50
+
+        Rust ->
+            rgb 192 111 63
+
+        Scratch ->
+            rgb 141 88 211
 
 
 marked : Maybe Position -> Position -> Css.Color
