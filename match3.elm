@@ -46,6 +46,13 @@ type alias Cell =
     }
 
 
+type alias ClearingState =
+    { currentLanguage : Language
+    , buffer : List Position
+    , markedForDeletion : List Position
+    }
+
+
 type alias Position =
     ( Int, Int )
 
@@ -61,7 +68,6 @@ type Language
     | Rust
     | Haskell
     | Scratch
-
 
 
 -- The model needs a starting value. The program gets an initial value by calling init
@@ -126,6 +132,7 @@ chunk size list =
 type Msg
     = Mark Position
     | Swap Position Position
+    | Clear
 
 
 
@@ -154,8 +161,75 @@ update msg model =
 
                 cell2 =
                     find_cell pos2 model.cells
+
+                cells =
+                    swap model.cells cell1 cell2
             in
-                ( { model | cells = (swap model.cells cell1 cell2) }, Cmd.none )
+                update Clear { model | cells = cells }
+
+        Clear ->
+            ( { model | cells = clear model.cells }, Cmd.none )
+
+
+getFlippedPosition : Cell -> Position
+getFlippedPosition {position} =
+    case position of
+        (x, y) -> (y, x)
+
+
+clear : List Cell -> List Cell
+clear cells =
+    let
+        verticallyOrdered = List.sortBy getFlippedPosition cells
+        horizontallyOrdered = List.sortBy .position cells
+
+        markedForDeletion = (clearOrdered verticallyOrdered) ++ (clearOrdered horizontallyOrdered)
+    in
+        List.map (replaceWith Ruby markedForDeletion) cells
+
+
+replaceWith : Language -> List Position -> Cell -> Cell
+replaceWith language positions cell =
+    if List.member cell.position positions then
+        { cell | language = language }
+    else
+        cell
+
+clearOrdered : List Cell -> List Position
+clearOrdered cells =
+    case cells of
+        [] ->
+            []
+
+        (x::xs) ->
+            let
+                initialState =
+                    { currentLanguage = x.language
+                    , buffer = [x.position]
+                    , markedForDeletion = []
+                    }
+            in
+                List.foldl byLanguage initialState xs
+                    |> .markedForDeletion
+
+
+byLanguage : Cell -> ClearingState -> ClearingState
+byLanguage { language, position } clearingState =
+    if clearingState.currentLanguage == language then
+        { clearingState | buffer = clearingState.buffer ++ [position] }
+    else
+        if List.length clearingState.buffer >= 3 then
+            let
+                stateMarkedForDeletion = (markBufferForDeletion clearingState)
+            in
+                { stateMarkedForDeletion | buffer = [position] , currentLanguage = language }
+        else
+            { clearingState | buffer = [position] , currentLanguage = language }
+
+
+markBufferForDeletion : ClearingState -> ClearingState
+markBufferForDeletion clearingState =
+    { clearingState | markedForDeletion = clearingState.markedForDeletion ++ clearingState.buffer }
 
 
 isAdjacent : Position -> Position -> Bool
@@ -298,6 +372,9 @@ tintFor language =
 
         JavaScript ->
             rgb 247 223 30
+
+        Ruby ->
+            rgb 155 28 22
 
         _ ->
             rgb 0 0 0
