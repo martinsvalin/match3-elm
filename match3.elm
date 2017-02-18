@@ -79,10 +79,13 @@ init =
     ( initModel, Cmd.none )
 
 
+gridSize : Int
+gridSize = 5
+
 initModel : Model
 initModel =
     { text = "Hello world!"
-    , cells = generateCells 9 9
+    , cells = generateCells gridSize gridSize
     , marked = Nothing
     }
 
@@ -102,7 +105,7 @@ generateCell : Int -> Int -> Cell
 generateCell rowIndex colIndex =
     { position = ( rowIndex, colIndex )
     , language =
-        if ((rowIndex + colIndex) % 2) == 0 then
+        if ((rowIndex + colIndex) % 3) == 0 then
             Elm
         else
             JavaScript
@@ -112,7 +115,7 @@ generateCell rowIndex colIndex =
 toGrid : List Cell -> Grid
 toGrid cells =
     List.sortBy .position cells
-        |> chunk 9
+        |> chunk gridSize
 
 
 chunk : Int -> List a -> List (List a)
@@ -185,15 +188,56 @@ clear cells =
 
         markedForDeletion = (clearOrdered verticallyOrdered) ++ (clearOrdered horizontallyOrdered)
     in
-        List.map (replaceWith Ruby markedForDeletion) cells
+        fillWithTopOnes markedForDeletion cells
 
 
-replaceWith : Language -> List Position -> Cell -> Cell
-replaceWith language positions cell =
-    if List.member cell.position positions then
-        { cell | language = language }
-    else
-        cell
+fillWithTopOnes : List Position -> List Cell -> List Cell
+fillWithTopOnes positions cells =
+    let
+        columnsFromTheBottom = List.sortBy flipCellPositionAndNegateY cells
+                                |> chunk gridSize
+    in
+        columnsFromTheBottom
+            |> List.map (cleanColumn positions)
+            |> List.concat
+
+
+flipCellPositionAndNegateY : Cell -> Position
+flipCellPositionAndNegateY cell =
+    let
+        (x, y) = cell.position
+    in
+        (x, (gridSize + 1) - y)
+
+
+cleanColumn : List Position -> List Cell -> List Cell
+cleanColumn positions column =
+    (Debug.log "filtered column" (List.filter (isNotInList (Debug.log "positions" (positions))) (Debug.log "column" (column))))
+        |> reindexColumn 1 []
+
+
+reindexColumn : Int -> List Cell -> List Cell -> List Cell
+reindexColumn index accumulator column =
+    case column of
+        [] ->
+            accumulator
+
+        x::xs ->
+            reindexColumn (index + 1) (accumulator ++ [(reindexCell index x)]) xs
+
+
+reindexCell : Int -> Cell -> Cell
+reindexCell index cell =
+    let
+        (x,_) = cell.position
+    in
+        { cell | position = (x, index) }
+
+
+isNotInList : List Position -> Cell -> Bool
+isNotInList positions {position} =
+    not (List.member position positions)
+
 
 clearOrdered : List Cell -> List Position
 clearOrdered cells =
@@ -305,7 +349,7 @@ view model =
             ]
         ]
         [ header model.text
-        , showGrid model (toGrid model.cells)
+        , showGrid model model.cells
         ]
 
 
@@ -327,41 +371,37 @@ styles =
     Css.asPairs >> Html.Attributes.style
 
 
-showGrid : Model -> Grid -> Html Msg
-showGrid model rows =
+showGrid : Model -> List Cell -> Html Msg
+showGrid model cells =
     Html.div
         [ styles
             []
-        ]
-        (List.map (showRow model) rows)
-
-
-showRow : Model -> List Cell -> Html Msg
-showRow model cells =
-    Html.div
-        [ styles
-            [ displayFlex
-            ]
         ]
         (List.map (showCell model) cells)
 
 
 showCell : Model -> Cell -> Html Msg
 showCell model cell =
-    Html.div
-        [ styles
-            [ backgroundColor (tintFor cell.language)
-            , border (px 2)
-            , borderColor (marked model.marked cell.position)
-            , borderStyle solid
-            , Css.width (px 64)
-            , Css.height (px 64)
-            , margin (px 3)
-            , cursor pointer
+    let
+        (x, y) = cell.position
+    in
+        Html.div
+            [ styles
+                [ backgroundColor (tintFor cell.language)
+                , border (px 2)
+                , borderColor (marked model.marked cell.position)
+                , borderStyle solid
+                , Css.width (px 64)
+                , Css.height (px 64)
+                , position absolute
+                , top (px (toFloat (x * 64)))
+                , left (px (toFloat (y * 64)))
+                , margin (px 3)
+                , cursor pointer
+                ]
+            , onClick (Mark cell.position)
             ]
-        , onClick (Mark cell.position)
-        ]
-        []
+            []
 
 
 tintFor : Language -> Css.Color
