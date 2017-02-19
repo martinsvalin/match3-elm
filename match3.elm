@@ -85,8 +85,8 @@ initModel =
             9
 
         buffer =
-            List.repeat 100 [ Ruby, JavaScript, Elm, Ruby, Elm, Erlang ]
-                |> List.concat
+            List.range 1 100
+                |> List.map getPseudoRandomLanguage
 
         allPositions =
             List.map
@@ -122,6 +122,50 @@ toGrid sorter cells =
     List.sortBy sorter cells
         |> chunk 9
         |> List.reverse
+
+
+getPseudoRandomLanguage : Int -> Language
+getPseudoRandomLanguage seed =
+    let
+        sinOfSeed =
+            sin (toFloat seed)
+
+        flooredSinOfSeed =
+            floor (sinOfSeed * 10000)
+
+        value =
+            flooredSinOfSeed % 9
+    in
+        case value of
+            0 ->
+                JavaScript
+
+            1 ->
+                Ruby
+
+            2 ->
+                Elm
+
+            3 ->
+                Erlang
+
+            4 ->
+                Rust
+
+            5 ->
+                Clojure
+
+            6 ->
+                Scratch
+
+            7 ->
+                Swift
+
+            8 ->
+                Haskell
+
+            _ ->
+                Python
 
 
 
@@ -502,10 +546,28 @@ tintFor language =
             rgb 247 223 30
 
         Ruby ->
-            rgb 175 16 0
+            rgb 155 28 22
 
-        _ ->
-            rgb 0 0 0
+        Python ->
+            rgb 54 113 161
+
+        Erlang ->
+            rgb 169 5 51
+
+        Haskell ->
+            rgb 102 73 142
+
+        Swift ->
+            rgb 253 131 54
+
+        Clojure ->
+            rgb 99 117 50
+
+        Rust ->
+            rgb 192 111 63
+
+        Scratch ->
+            rgb 141 88 211
 
 
 marked : Maybe Position -> Position -> Css.Color
