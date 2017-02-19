@@ -33,6 +33,7 @@ type alias Model =
     { text : String
     , cells : List Cell
     , marked : Maybe Position
+    , buffer : List Language
     }
 
 
@@ -76,31 +77,42 @@ init =
 
 initModel : Model
 initModel =
-    { text = "Hello world!"
-    , cells = generateCells 9 9
-    , marked = Nothing
-    }
+    let
+        width =
+            9
+
+        height =
+            9
+
+        buffer =
+            List.repeat 100 [ Ruby, JavaScript, Elm, Ruby, Elm, Erlang ]
+                |> List.concat
+
+        allPositions =
+            List.map
+                (\column ->
+                    List.map (\row -> ( column, row )) (List.range 1 height)
+                )
+                (List.range 1 width)
+                |> List.concat
+
+        initialCells =
+            (List.take (width * height) buffer)
+                |> (List.map cellFromLanguage)
+                |> (zip allPositions)
+                |> List.map (\( position, cell ) -> { cell | position = position })
+    in
+        { text = "Hello world!"
+        , cells = initialCells
+        , marked = Nothing
+        , buffer = (List.drop (width * height) buffer)
+        }
 
 
-generateCells : Int -> Int -> List Cell
-generateCells n m =
-    List.map (generateRow m) (List.range 1 n)
-        |> List.concat
-
-
-generateRow : Int -> Int -> List Cell
-generateRow m rowIndex =
-    List.map (generateCell rowIndex) (List.range 1 m)
-
-
-generateCell : Int -> Int -> Cell
-generateCell rowIndex colIndex =
-    { position = ( rowIndex, colIndex )
-    , language =
-        if ((rowIndex + colIndex) % 2) == 0 then
-            Elm
-        else
-            JavaScript
+cellFromLanguage : Language -> Cell
+cellFromLanguage lang =
+    { language = lang
+    , position = ( 0, 0 )
     , keep = True
     }
 
