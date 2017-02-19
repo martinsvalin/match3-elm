@@ -70,6 +70,7 @@ type Language
     | Scratch
 
 
+
 -- The model needs a starting value. The program gets an initial value by calling init
 -- The Cmd is there for things like making web requests, getting random numbers, making sound etc.
 
@@ -122,21 +123,47 @@ chunk size list =
 getPseudoRandomLanguage : Int -> Language
 getPseudoRandomLanguage seed =
     let
-        sinOfSeed = sin (toFloat seed)
-        flooredSinOfSeed = floor (sinOfSeed * 10000)
-        value = flooredSinOfSeed % 9
+        sinOfSeed =
+            sin (toFloat seed)
+
+        flooredSinOfSeed =
+            floor (sinOfSeed * 10000)
+
+        value =
+            flooredSinOfSeed % 9
     in
         case value of
-            0 -> JavaScript
-            1 -> Ruby
-            2 -> Elm
-            3 -> Erlang
-            4 -> Rust
-            5 -> Clojure
-            6 -> Scratch
-            7 -> Swift
-            8 -> Haskell
-            _ -> Python
+            0 ->
+                JavaScript
+
+            1 ->
+                Ruby
+
+            2 ->
+                Elm
+
+            3 ->
+                Erlang
+
+            4 ->
+                Rust
+
+            5 ->
+                Clojure
+
+            6 ->
+                Scratch
+
+            7 ->
+                Swift
+
+            8 ->
+                Haskell
+
+            _ ->
+                Python
+
+
 
 -- UPDATE
 -- The Msg type is a "union type", which is a fancy word for "it'll be one of these things"
@@ -186,18 +213,23 @@ update msg model =
 
 
 getFlippedPosition : Cell -> Position
-getFlippedPosition {position} =
+getFlippedPosition { position } =
     case position of
-        (x, y) -> (y, x)
+        ( x, y ) ->
+            ( y, x )
 
 
 clear : List Cell -> List Cell
 clear cells =
     let
-        verticallyOrdered = List.sortBy getFlippedPosition cells
-        horizontallyOrdered = List.sortBy .position cells
+        verticallyOrdered =
+            List.sortBy getFlippedPosition cells
 
-        markedForDeletion = (clearOrdered verticallyOrdered) ++ (clearOrdered horizontallyOrdered)
+        horizontallyOrdered =
+            List.sortBy .position cells
+
+        markedForDeletion =
+            (clearOrdered verticallyOrdered) ++ (clearOrdered horizontallyOrdered)
     in
         List.map (replaceWith Ruby markedForDeletion) cells
 
@@ -209,17 +241,18 @@ replaceWith language positions cell =
     else
         cell
 
+
 clearOrdered : List Cell -> List Position
 clearOrdered cells =
     case cells of
         [] ->
             []
 
-        (x::xs) ->
+        x :: xs ->
             let
                 initialState =
                     { currentLanguage = x.language
-                    , buffer = [x.position]
+                    , buffer = [ x.position ]
                     , markedForDeletion = []
                     }
             in
@@ -230,15 +263,15 @@ clearOrdered cells =
 byLanguage : Cell -> ClearingState -> ClearingState
 byLanguage { language, position } clearingState =
     if clearingState.currentLanguage == language then
-        { clearingState | buffer = clearingState.buffer ++ [position] }
+        { clearingState | buffer = clearingState.buffer ++ [ position ] }
+    else if List.length clearingState.buffer >= 3 then
+        let
+            stateMarkedForDeletion =
+                (markBufferForDeletion clearingState)
+        in
+            { stateMarkedForDeletion | buffer = [ position ], currentLanguage = language }
     else
-        if List.length clearingState.buffer >= 3 then
-            let
-                stateMarkedForDeletion = (markBufferForDeletion clearingState)
-            in
-                { stateMarkedForDeletion | buffer = [position] , currentLanguage = language }
-        else
-            { clearingState | buffer = [position] , currentLanguage = language }
+        { clearingState | buffer = [ position ], currentLanguage = language }
 
 
 markBufferForDeletion : ClearingState -> ClearingState
