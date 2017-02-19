@@ -43,6 +43,7 @@ type alias Grid =
 type alias Cell =
     { position : Position
     , language : Language
+    , keep : Bool
     }
 
 
@@ -100,13 +101,34 @@ generateCell rowIndex colIndex =
             Elm
         else
             JavaScript
+    , keep = True
     }
 
 
-toGrid : List Cell -> Grid
-toGrid cells =
-    List.sortBy .position cells
+toGrid : (Cell -> Position) -> List Cell -> Grid
+toGrid sorter cells =
+    List.sortBy sorter cells
         |> chunk 9
+        |> List.reverse
+
+
+
+-- Sort cells for the grid so that positions are laid out in columns,
+-- high row values top, low bottom.
+-- Example: A 3x3 grid would look like this
+-- [ [(1, 3), (2, 3), (3, 3)]
+-- , [(1, 2), (2, 2), (3, 2)]
+-- , [(1, 1), (2, 1), (3, 1)]
+-- ]
+
+
+columnSort : Cell -> Position
+columnSort cell =
+    let
+        ( x, y ) =
+            cell.position
+    in
+        ( y, x )
 
 
 chunk : Int -> List a -> List (List a)
@@ -115,6 +137,16 @@ chunk size list =
         List.take size list :: chunk size (List.drop size list)
     else
         [ list ]
+
+
+zip : List a -> List b -> List ( a, b )
+zip xs ys =
+    case ( xs, ys ) of
+        ( x :: xBack, y :: yBack ) ->
+            ( x, y ) :: zip xBack yBack
+
+        ( _, _ ) ->
+            []
 
 
 
@@ -126,6 +158,8 @@ chunk size list =
 type Msg
     = Mark Position
     | Swap Position Position
+    | Clear
+    | Fill
 
 
 
@@ -137,25 +171,29 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Mark position ->
-            case model.marked of
-                Nothing ->
-                    ( { model | marked = Just position }, Cmd.none )
-
-                Just marked ->
-                    if isAdjacent marked position then
-                        update (Swap marked position) { model | marked = Nothing }
-                    else
-                        ( { model | marked = Just position }, Cmd.none )
+            markPosition position model
 
         Swap pos1 pos2 ->
-            let
-                cell1 =
-                    find_cell pos1 model.cells
+            update Clear { model | cells = (swap pos1 pos2 model.cells) }
 
-                cell2 =
-                    find_cell pos2 model.cells
-            in
-                ( { model | cells = (swap model.cells cell1 cell2) }, Cmd.none )
+        Clear ->
+            update Fill { model | cells = (clear model.cells) }
+
+        Fill ->
+            ( { model | cells = (fill model.cells) }, Cmd.none )
+
+
+markPosition : Position -> Model -> ( Model, Cmd Msg )
+markPosition position model =
+    case model.marked of
+        Nothing ->
+            ( { model | marked = Just position }, Cmd.none )
+
+        Just mark ->
+            if isAdjacent mark position then
+                update (Swap mark position) { model | marked = Nothing }
+            else
+                ( { model | marked = Just position }, Cmd.none )
 
 
 isAdjacent : Position -> Position -> Bool
@@ -172,18 +210,43 @@ adjacents ( x, y ) =
     ]
 
 
-swap : List Cell -> Maybe Cell -> Maybe Cell -> List Cell
-swap cells cell1 cell2 =
+
+-- Swapping cells
+-- 1. Identify the involved cells by Position. We need the cells to get their language.
+-- 2. Go through cells. When you find one of the two we're looking for:
+-- 3. Substitute language with the other cell's language (and vice versa)
+
+
+swap : Position -> Position -> List Cell -> List Cell
+swap pos1 pos2 cells =
+    let
+        cell1 =
+            find_cell pos1 cells
+
+        cell2 =
+            find_cell pos2 cells
+    in
+        swapCell cells cell1 cell2
+
+
+find_cell : Position -> List Cell -> Maybe Cell
+find_cell position cells =
+    List.filter (\cell -> cell.position == position) cells
+        |> List.head
+
+
+swapCell : List Cell -> Maybe Cell -> Maybe Cell -> List Cell
+swapCell cells cell1 cell2 =
     case ( cell1, cell2 ) of
         ( Just one, Just two ) ->
-            List.map (swap_cell one two) cells
+            List.map (swapLanguageInCells one two) cells
 
         _ ->
             cells
 
 
-swap_cell : Cell -> Cell -> Cell -> Cell
-swap_cell one two current =
+swapLanguageInCells : Cell -> Cell -> Cell -> Cell
+swapLanguageInCells one two current =
     if current == one then
         { current | language = two.language }
     else if current == two then
@@ -192,10 +255,137 @@ swap_cell one two current =
         current
 
 
-find_cell : Position -> List Cell -> Maybe Cell
-find_cell position cells =
-    List.filter (\cell -> cell.position == position) cells
-        |> List.head
+
+-- Clearing cells
+-- 1. Convert list of cells to a grid
+-- 2. Looking for 3-in-a-row with the same language.
+-- 3. Mark them.
+-- 4. Then convert back to list. So far, we've only looked horizontally.
+-- 5. Now convert to grid again, but with a different sort order.
+-- 6. Do the same marking
+-- 7. Convert back to list.
+-- Now, every cell that is part of a 3-in-a-row pattern is marked.
+-- 8. Filter out the marked cells.
+
+
+clear : List Cell -> List Cell
+clear cells =
+    cells
+        |> markForClearingHorizontal
+        |> markForClearingVertical
+        |> clearMarked
+
+
+markForClearingHorizontal : List Cell -> List Cell
+markForClearingHorizontal cells =
+    cells |> (toGrid columnSort) |> markForClearing |> List.concat
+
+
+markForClearingVertical : List Cell -> List Cell
+markForClearingVertical cells =
+    cells |> (toGrid .position) |> markForClearing |> List.concat
+
+
+markForClearing : Grid -> Grid
+markForClearing rows =
+    List.map markInRow rows
+
+
+markInRow : List Cell -> List Cell
+markInRow cells =
+    case cells of
+        a :: b :: c :: rest ->
+            if a.language == b.language && b.language == c.language then
+                let
+                    aa =
+                        { a | keep = False }
+
+                    bb =
+                        { b | keep = False }
+
+                    cc =
+                        { c | keep = False }
+                in
+                    aa :: markInRow (aa :: bb :: rest)
+            else
+                a :: markInRow (b :: c :: rest)
+
+        _ ->
+            cells
+
+
+clearMarked : List Cell -> List Cell
+clearMarked cells =
+    List.filter .keep cells
+
+
+
+-- Filling cells
+-- After clearing cells, we need new ones. The cells will be presented in a grid,
+-- column-wise, where the first number in the position denotes the column.
+-- Missing cells are filled in by adding more cells to that column.
+-- To accomplish this, we look at the grid grouped by column.
+
+
+fill : List Cell -> List Cell
+fill cells =
+    List.range 1 9
+        |> (List.map
+                (\column ->
+                    ( column
+                    , (pickColumn column cells)
+                    )
+                )
+           )
+        |> (List.map fillColumn)
+        |> List.concat
+
+
+pickColumn : Int -> List Cell -> List Cell
+pickColumn column cells =
+    List.filter
+        (\cell ->
+            let
+                ( x, y ) =
+                    cell.position
+            in
+                x == column
+        )
+        cells
+
+
+fillColumn : ( Int, List Cell ) -> List Cell
+fillColumn ( column, cells ) =
+    let
+        missing =
+            9 - (List.length cells)
+
+        positions =
+            List.map (\row -> ( column, row )) (List.range 1 9)
+                |> List.reverse
+    in
+        (cells ++ (newRandomCells missing))
+            |> (List.sortBy .position)
+            |> zip (positions)
+            |> List.map (\( position, cell ) -> { cell | position = position })
+
+
+newRandomCells : Int -> List Cell
+newRandomCells n =
+    case n of
+        0 ->
+            []
+
+        n ->
+            newRandomCell :: (newRandomCells (n - 1))
+
+
+newRandomCell : Cell
+newRandomCell =
+    { position = ( 0, 0 )
+    , language = Ruby
+    , keep = True
+    }
 
 
 
@@ -231,7 +421,7 @@ view model =
             ]
         ]
         [ header model.text
-        , showGrid model (toGrid model.cells)
+        , showGrid model.marked (toGrid columnSort model.cells)
         ]
 
 
@@ -253,32 +443,32 @@ styles =
     Css.asPairs >> Html.Attributes.style
 
 
-showGrid : Model -> Grid -> Html Msg
-showGrid model rows =
+showGrid : Maybe Position -> Grid -> Html Msg
+showGrid mark rows =
     Html.div
         [ styles
             []
         ]
-        (List.map (showRow model) rows)
+        (List.map (showRow mark) rows)
 
 
-showRow : Model -> List Cell -> Html Msg
-showRow model cells =
+showRow : Maybe Position -> List Cell -> Html Msg
+showRow mark cells =
     Html.div
         [ styles
             [ displayFlex
             ]
         ]
-        (List.map (showCell model) cells)
+        (List.map (showCell mark) cells)
 
 
-showCell : Model -> Cell -> Html Msg
-showCell model cell =
+showCell : Maybe Position -> Cell -> Html Msg
+showCell mark cell =
     Html.div
         [ styles
             [ backgroundColor (tintFor cell.language)
             , border (px 2)
-            , borderColor (marked model.marked cell.position)
+            , borderColor (marked mark cell.position)
             , borderStyle solid
             , Css.width (px 64)
             , Css.height (px 64)
@@ -287,7 +477,7 @@ showCell model cell =
             ]
         , onClick (Mark cell.position)
         ]
-        []
+        [ Html.text (toString cell.position) ]
 
 
 tintFor : Language -> Css.Color
@@ -298,6 +488,9 @@ tintFor language =
 
         JavaScript ->
             rgb 247 223 30
+
+        Ruby ->
+            rgb 175 16 0
 
         _ ->
             rgb 0 0 0
@@ -315,9 +508,7 @@ marked marked position =
 
 markedColor : Bool -> Css.Color
 markedColor bool =
-    case bool of
-        True ->
-            rgb 255 0 0
-
-        False ->
-            rgb 0 0 0
+    if bool then
+        rgb 255 0 0
+    else
+        rgb 0 0 0
