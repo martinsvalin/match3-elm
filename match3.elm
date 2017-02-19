@@ -68,6 +68,7 @@ type Language
     | Rust
     | Haskell
     | Scratch
+    | Blank
 
 
 
@@ -231,7 +232,7 @@ clear cells =
         markedForDeletion =
             (clearOrdered verticallyOrdered) ++ (clearOrdered horizontallyOrdered)
     in
-        List.map (replaceWith Ruby markedForDeletion) cells
+        List.map (replaceWith Blank markedForDeletion) cells
 
 
 replaceWith : Language -> List Position -> Cell -> Cell
@@ -443,6 +444,9 @@ tintFor language =
 
         Scratch ->
             rgb 141 88 211
+
+        Blank ->
+            rgb 0 0 0
 
 
 marked : Maybe Position -> Position -> Css.Color
